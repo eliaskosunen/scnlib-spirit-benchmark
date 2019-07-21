@@ -7,7 +7,8 @@ as prompted by [issue #9](https://github.com/eliaskosunen/scnlib/issue/9).
 
 ### spirit-oriented benchmark
 
-Benchmark | CPU time
-:-------- | -------:
-spirit    | 7258
-scnlib    | 12426
+List length | spirit | scnlib | % difference
+:---------- | -----: | -----: | -----------:
+16          | 7473   | 10425  | 40
+64          | 26990  | 33766  | 25
+256         | 105858 | 133705 | 26

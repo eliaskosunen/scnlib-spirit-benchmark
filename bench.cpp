@@ -32,7 +32,7 @@ static void issue_spirit(benchmark::State& state)
     using namespace boost::spirit;
 
     for (auto _ : state) {
-        auto data = generate_data<double>(4);
+        auto data = generate_data<double>(static_cast<size_t>(state.range(0)));
 
         std::vector<double> read;
         bool r = x3::phrase_parse(data.begin(), data.end(),
@@ -44,14 +44,12 @@ static void issue_spirit(benchmark::State& state)
         }
     }
 }
-BENCHMARK(issue_spirit);
+BENCHMARK(issue_spirit)->Arg(16)->Arg(64)->Arg(256);
 
 static void issue_scn(benchmark::State& state)
 {
-    using namespace boost::spirit;
-
     for (auto _ : state) {
-        auto data = generate_data<double>(4);
+        auto data = generate_data<double>(static_cast<size_t>(state.range(0)));
 
         std::vector<double> read;
         auto stream = scn::make_stream(data);
@@ -76,6 +74,6 @@ static void issue_scn(benchmark::State& state)
         }
     }
 }
-BENCHMARK(issue_scn);
+BENCHMARK(issue_scn)->Arg(16)->Arg(64)->Arg(256);
 
 BENCHMARK_MAIN();
