@@ -54,7 +54,7 @@ static void issue_scn(benchmark::State& state)
         std::vector<double> read;
         auto stream = scn::make_stream(data);
         while (true) {
-            std::string str;
+            scn::string_view str;
             auto err = scn::getline(stream, str, ',');
             if (!err) {
                 if (err == scn::error::end_of_stream) {
