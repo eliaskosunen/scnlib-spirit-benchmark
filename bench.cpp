@@ -9,34 +9,31 @@
 #include <string>
 #include <vector>
 
-template <typename Float>
-std::string generate_data(size_t n)
-{
+template <typename Int>
+std::string generate_data(size_t n) {
     std::default_random_engine rng(std::random_device{}());
-    std::uniform_int_distribution<int> int_dist(-8, 16);
-    std::uniform_real_distribution<Float> float_dist(Float(0.0), Float(1.0));
+    std::uniform_int_distribution<Int> int_dist(
+        std::numeric_limits<Int>::min(), std::numeric_limits<Int>::max());
 
     std::ostringstream oss;
     for (size_t i = 0; i < n; ++i) {
-        auto f = float_dist(rng);
-        auto exp = int_dist(rng);
-        f = std::scalbn(f, exp);
-        oss << f << ", ";
+        oss << int_dist(rng) << ", ";
     }
-    oss << float_dist(rng);
+    oss << int_dist(rng);
     return oss.str();
 }
 
-static void issue_spirit(benchmark::State& state)
-{
+static void issue_spirit(benchmark::State& state) {
     using namespace boost::spirit;
 
     for (auto _ : state) {
-        auto data = generate_data<double>(static_cast<size_t>(state.range(0)));
+        state.PauseTiming();
+        auto data = generate_data<int>(static_cast<size_t>(state.range(0)));
+        state.ResumeTiming();
 
-        std::vector<double> read;
+        std::vector<int> read;
         bool r = x3::phrase_parse(data.begin(), data.end(),
-                                  x3::double_ >> *(',' >> x3::double_),
+                                  x3::int_ >> *(',' >> x3::int_),
                                   x3::ascii::space, read);
         if (!r) {
             state.SkipWithError("");
@@ -46,34 +43,80 @@ static void issue_spirit(benchmark::State& state)
 }
 BENCHMARK(issue_spirit)->Arg(16)->Arg(64)->Arg(256);
 
-static void issue_scn(benchmark::State& state)
-{
+static void issue_scn(benchmark::State& state) {
     for (auto _ : state) {
-        auto data = generate_data<double>(static_cast<size_t>(state.range(0)));
+        state.PauseTiming();
+        auto data = generate_data<int>(static_cast<size_t>(state.range(0)));
+        auto view = scn::make_view(data);
+        state.ResumeTiming();
 
-        std::vector<double> read;
-        auto stream = scn::make_stream(data);
+        std::vector<int> read;
         while (true) {
             scn::string_view str;
-            auto err = scn::getline(stream, str, ',');
+            auto err = scn::getline(view, str, ',');
             if (!err) {
-                if (err == scn::error::end_of_stream) {
+                if (err.error() == scn::error::end_of_range) {
                     break;
                 }
                 state.SkipWithError("");
                 break;
             }
 
-            auto strstream = scn::make_stream(str);
-            auto tmp = scn::get_value<double>(strstream);
+            int val{};
+            auto tmp = scn::scan(str, scn::default_tag, val);
             if (!tmp) {
                 state.SkipWithError("");
                 break;
             }
-            read.push_back(tmp.value());
+            read.push_back(val);
         }
     }
 }
 BENCHMARK(issue_scn)->Arg(16)->Arg(64)->Arg(256);
+
+static void issue_scn_list(benchmark::State& state) {
+    for (auto _ : state) {
+        state.PauseTiming();
+        auto data = generate_data<int>(static_cast<size_t>(state.range(0)));
+        state.ResumeTiming();
+
+        std::vector<int> read;
+        auto ret = scn::scan_list(scn::make_view(data), read, ',');
+        if (!ret) {
+            state.SkipWithError("");
+            break;
+        }
+    }
+}
+BENCHMARK(issue_scn_list)->Arg(16)->Arg(64)->Arg(256);
+
+static void issue_istream(benchmark::State& state) {
+    for (auto _ : state) {
+        state.PauseTiming();
+        auto data = generate_data<int>(static_cast<size_t>(state.range(0)));
+        auto stream = std::istringstream{data};
+        state.ResumeTiming();
+
+        while (true) {
+            std::vector<int> read;
+            int tmp;
+            if (!(stream >> tmp)) {
+                state.SkipWithError("");
+                break;
+            }
+            read.push_back(tmp);
+
+            char ch;
+            if (!(stream >> ch)) {
+                if (stream.eof()) {
+                    break;
+                }
+                state.SkipWithError("");
+                break;
+            }
+        }
+    }
+}
+BENCHMARK(issue_istream)->Arg(16)->Arg(64)->Arg(256);
 
 BENCHMARK_MAIN();
