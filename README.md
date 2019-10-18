@@ -5,10 +5,24 @@ as prompted by [issue #9](https://github.com/eliaskosunen/scnlib/issues/9).
 
 ## Results
 
+### Reading a single integer
+
+spirit::x3 | `scn::scan` | `scn::parse_integer` | `<iostream>` | `sscanf`
+---------: | ----------: | -------------------: | -----------: | -------:
+14         | 44          | 18                   | 261          | 94
+
+### Reading a list of whitespace-separated integers
+
+List length | spirit::x3 | scnlib | scnlib (naive) | `<iostream>`
+:---------- | ---------: | -----: | -------------: | -----------:
+16          | 905        | 1432   | 1447           | 1901
+64          | 1732       | 3784   | 3826           | 5465
+256         | 4950       | 12888  | 13101          | 19438
+
 ### Reading a list of comma-separated integers
 
-List length | spirit | scnlib | scnlib (naive) | `<iostream>`
-:---------- | -----: | -----: | -------------: | -----------:
-16          | 1007   | 1445   | 1563           | 2177
-64          | 1986   | 3913   | 4264           | 6736
-256         | 5732   | 13242  | 15024          | 24907
+List length | spirit::x3 | scnlib | scnlib (naive) | `<iostream>`
+:---------- | ---------: | -----: | -------------: | -----------:
+16          | 940        | 1418   | 1486           | 2026
+64          | 1785       | 3780   | 4022           | 5917
+256         | 5026       | 12993  | 13882          | 21295

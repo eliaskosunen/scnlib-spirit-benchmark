@@ -10,8 +10,7 @@
 #include <vector>
 
 template <typename Int>
-std::string generate_data(size_t n, bool comma)
-{
+std::string generate_data(size_t n, bool comma) {
     std::default_random_engine rng(std::random_device{}());
     std::uniform_int_distribution<Int> int_dist(
         std::numeric_limits<Int>::min(), std::numeric_limits<Int>::max());
@@ -28,8 +27,22 @@ std::string generate_data(size_t n, bool comma)
     return oss.str();
 }
 
-static void issue_spirit(benchmark::State& state)
-{
+template <typename Int>
+std::vector<std::string> generate_data_list(size_t n) {
+    std::default_random_engine rng(std::random_device{}());
+    std::uniform_int_distribution<Int> int_dist(
+        std::numeric_limits<Int>::min(), std::numeric_limits<Int>::max());
+
+    std::vector<std::string> vec;
+    for (size_t i = 0; i < n; ++i) {
+        std::ostringstream oss;
+        oss << int_dist(rng);
+        vec.push_back(oss.str());
+    }
+    return vec;
+}
+
+static void issue_spirit(benchmark::State& state) {
     using namespace boost::spirit;
 
     for (auto _ : state) {
@@ -50,8 +63,7 @@ static void issue_spirit(benchmark::State& state)
 }
 BENCHMARK(issue_spirit)->Arg(16)->Arg(64)->Arg(256);
 
-static void issue_scn(benchmark::State& state)
-{
+static void issue_scn(benchmark::State& state) {
     for (auto _ : state) {
         state.PauseTiming();
         auto data =
@@ -83,8 +95,7 @@ static void issue_scn(benchmark::State& state)
 }
 BENCHMARK(issue_scn)->Arg(16)->Arg(64)->Arg(256);
 
-static void issue_scn_list(benchmark::State& state)
-{
+static void issue_scn_list(benchmark::State& state) {
     for (auto _ : state) {
         state.PauseTiming();
         auto data =
@@ -103,8 +114,7 @@ static void issue_scn_list(benchmark::State& state)
 }
 BENCHMARK(issue_scn_list)->Arg(16)->Arg(64)->Arg(256);
 
-static void issue_istream(benchmark::State& state)
-{
+static void issue_istream(benchmark::State& state) {
     for (auto _ : state) {
         state.PauseTiming();
         auto data =
@@ -134,8 +144,7 @@ static void issue_istream(benchmark::State& state)
 }
 BENCHMARK(issue_istream)->Arg(16)->Arg(64)->Arg(256);
 
-static void nocomma_spirit(benchmark::State& state)
-{
+static void nocomma_spirit(benchmark::State& state) {
     using namespace boost::spirit;
 
     for (auto _ : state) {
@@ -155,8 +164,7 @@ static void nocomma_spirit(benchmark::State& state)
 }
 BENCHMARK(nocomma_spirit)->Arg(16)->Arg(64)->Arg(256);
 
-static void nocomma_scn(benchmark::State& state)
-{
+static void nocomma_scn(benchmark::State& state) {
     for (auto _ : state) {
         state.PauseTiming();
         auto data =
@@ -180,8 +188,7 @@ static void nocomma_scn(benchmark::State& state)
 }
 BENCHMARK(nocomma_scn)->Arg(16)->Arg(64)->Arg(256);
 
-static void nocomma_scn_list(benchmark::State& state)
-{
+static void nocomma_scn_list(benchmark::State& state) {
     for (auto _ : state) {
         state.PauseTiming();
         auto data =
@@ -200,8 +207,7 @@ static void nocomma_scn_list(benchmark::State& state)
 }
 BENCHMARK(nocomma_scn_list)->Arg(16)->Arg(64)->Arg(256);
 
-static void nocomma_istream(benchmark::State& state)
-{
+static void nocomma_istream(benchmark::State& state) {
     for (auto _ : state) {
         state.PauseTiming();
         auto data =
@@ -223,5 +229,93 @@ static void nocomma_istream(benchmark::State& state)
     }
 }
 BENCHMARK(nocomma_istream)->Arg(16)->Arg(64)->Arg(256);
+
+static void single_spirit(benchmark::State& state) {
+    using namespace boost::spirit;
+
+    auto vec = generate_data_list<int>(8192);
+    auto it = vec.begin();
+    for (auto _ : state) {
+        int i;
+        bool r = x3::phrase_parse(it->begin(), it->end(), x3::int_,
+                                  x3::ascii::space, i);
+        if (!r) {
+            state.SkipWithError("");
+            break;
+        }
+        ++it;
+        if (it == vec.end()) {
+            it = vec.begin();
+        }
+    }
+}
+BENCHMARK(single_spirit);
+
+static void single_scn(benchmark::State& state) {
+    auto vec = generate_data_list<int>(8192);
+    auto it = vec.begin();
+    for (auto _ : state) {
+        int i;
+        auto ret = scn::scan(scn::make_view(*it), scn::default_tag, i);
+        if (!ret) {
+            state.SkipWithError("");
+            break;
+        }
+        ++it;
+        if (it == vec.end()) {
+            it = vec.begin();
+        }
+    }
+}
+BENCHMARK(single_scn);
+
+static void single_scn_integer(benchmark::State& state) {
+    auto vec = generate_data_list<int>(8192);
+    auto it = vec.begin();
+    for (auto _ : state) {
+        int i;
+        auto ret = scn::parse_integer(scn::string_view{*it}, i);
+        if (!ret) {
+            state.SkipWithError("");
+            break;
+        }
+        ++it;
+        if (it == vec.end()) {
+            it = vec.begin();
+        }
+    }
+}
+BENCHMARK(single_scn_integer);
+
+static void single_istream(benchmark::State& state) {
+    auto vec = generate_data_list<int>(8192);
+    auto it = vec.begin();
+    for (auto _ : state) {
+        int i;
+        if (!(std::istringstream{*it} >> i)) {
+            state.SkipWithError("");
+            break;
+        }
+        ++it;
+        if (it == vec.end()) {
+            it = vec.begin();
+        }
+    }
+}
+BENCHMARK(single_istream);
+
+static void single_scanf(benchmark::State& state) {
+    auto vec = generate_data_list<int>(8192);
+    auto it = vec.begin();
+    for (auto _ : state) {
+        int i;
+        sscanf(it->c_str(), "%d", &i);
+        ++it;
+        if (it == vec.end()) {
+            it = vec.begin();
+        }
+    }
+}
+BENCHMARK(single_scanf);
 
 BENCHMARK_MAIN();
